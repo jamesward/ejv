@@ -1,0 +1,264 @@
+#!/bin/bash
+#
+# Embeddable Java Version
+# 
+#  Projects can specify their Java version via a system.properties file
+#  Like: java.runtime.version=1.8.0_202
+#  That JDK is then downloaded (if needed) and the JAVA_HOME & PATH are set accordingly
+#
+
+local BASE_LOCAL_DIR=$HOME/.ejv
+local JQ_VERSION=1.4
+
+local OS_LINUX="LINUX"
+local OS_MAC="MAC"
+local OS_CYGWIN="CYGWIN"
+
+local ARCH_32="i686"
+local ARCH_64="x86_64"
+
+local DISTRO_ADOPTOPENJDK="adpoptopenjdk"
+local DISTRO_OPENJDK="openjdk"
+local DISTRO_ZULU="zulu"
+
+
+# Gets the system os and architecture
+#
+# Sets:
+#  OS
+#  ARCH
+#
+function get_system_info() {
+  if [ "$OS" != "$OS_LINUX" ] && [ "$OS" != "$OS_MAC" ] && [ "$OS" != "$OS_CYGWIN" ]; then
+
+    readonly ARCH=$(uname -m)
+
+    if [ "$ARCH" != "$ARCH_32" ] && [ "$ARCH" != "$ARCH_64" ]; then
+      echo "Did not recognize system architecture: $ARCH"
+      exit 1
+    fi
+
+    if [ "$(uname)" == "Darwin" ]; then
+      readonly OS=$OS_MAC
+    elif [ "$(uname -s)" == "CYGWIN_NT-5.1" ] || [ "$(uname -s)" == "CYGWIN_NT-6.1" ] || [ "$(uname -s)" == "CYGWIN_NT-6.1-WOW64" ] || [ "$(uname -s)" == "MINGW32_NT-6.2" ]; then
+      readonly OS=$OS_CYGWIN
+    elif [ "$(uname -o)" == "Cygwin" ]; then
+      readonly OS=$OS_CYGWIN
+    elif [ "$(uname -o)" == "GNU/Linux" ]; then
+      readonly OS=$OS_LINUX
+    else
+      echo "Did not recognize OS: $(uname)"
+      exit 1
+    fi
+  fi
+}
+
+# Download the jq tool
+#
+# Requires:
+#  BASE_LOCAL_DIR
+#  JQ_VERSION
+#  OS
+#  OS_LINUX
+#  OS_MAC
+#  OS_CYGWIN
+#  ARCH
+#  ARCH_32
+#  ARCH_64
+#
+# Sets:
+#  JQ_BIN
+#
+function download_jq() {
+
+  if [ "$JQ_BIN" == "" ]; then
+    readonly JQ_BIN=$BASE_LOCAL_DIR/tools/jq-$JQ_VERSION
+
+    if [ ! -e $JQ_BIN ]; then
+      $(mkdir -p $BASE_LOCAL_DIR/tools)
+
+      local JQ_HOST="github.com"
+
+      if [ "$OS" == "$OS_LINUX" ] && [ "$ARCH" == "$ARCH_32" ]; then
+        local JQ_PATH="/stedolan/jq/releases/download/jq-$JQ_VERSION/jq-linux-x86"
+      elif [ "$OS" == "$OS_LINUX" ] && [ "$ARCH" == "$ARCH_64" ]; then
+        local JQ_PATH="/stedolan/jq/releases/download/jq-$JQ_VERSION/jq-linux-x86_64"
+      elif [ "$OS" == "$OS_MAC" ] && [ "$ARCH" == "$ARCH_32" ]; then
+        local JQ_PATH="/stedolan/jq/releases/download/jq-$JQ_VERSION/jq-osx-x86"
+      elif [ "$OS" == "$OS_MAC" ] && [ "$ARCH" == "$ARCH_64" ]; then
+        local JQ_PATH="/stedolan/jq/releases/download/jq-$JQ_VERSION/jq-osx-x86_64"
+      elif [ "$OS" == "$OS_CYGWIN" ] && [ "$ARCH" == "$ARCH_32" ]; then
+        local JQ_PATH="/stedolan/jq/releases/download/jq-$JQ_VERSION/jq-win32.exe"
+      elif [ "$OS" == "$OS_CYGWIN" ] && [ "$ARCH" == "$ARCH_64" ]; then
+        local JQ_PATH="/stedolan/jq/releases/download/jq-$JQ_VERSION/jq-win64.exe"
+      fi
+
+      $(curl -s -L -o $JQ_BIN https://$JQ_HOST$JQ_PATH)
+
+      $(chmod +x $JQ_BIN)
+    fi
+  fi
+
+}
+
+# Parse the system.properties to find the requested version
+#
+# Sets:
+#  JAVA_RELEASE_NAME
+#  JAVA_BINARY_LINK
+#
+# Supported distros: AdoptOpenJDK
+# Coming soon: OpenJDK, Zulu
+#
+# Defaults to AdoptOpenJDK if no distro is specified
+#
+function get_version() {
+  unset JAVA_RELEASE_NAME
+  unset JAVA_BINARY_LINK
+  unset VERSION_JSON
+
+  if [ -e system.properties ]; then
+    local java_runtime_version=$(cat system.properties | grep "java.runtime.version=" | cut -d'=' -f2)
+
+    if [ "" != "" ]; then
+      # distro-version
+      #
+      # distros:
+      #  openjdk
+      #  zulu
+      #  adoptopenjdk
+      #
+      # examples:
+      #  openjdk-1.8
+      #  openjdk-1.8.0
+      #  openjdk-1.8.0_212
+
+      echo "todo"
+    else
+      # version
+      #
+      # 1.8
+      # 1.8.0
+      # 1.8.0_212
+      #
+      # 9
+      # 9.0
+      # 9.0.4
+
+      local java_distro=$DISTRO_ADOPTOPENJDK
+      local requested_version=$java_runtime_version
+    fi
+
+    # transform requested into an actual version
+    if [ $java_distro == $DISTRO_ADOPTOPENJDK ]; then
+      function latest() {
+        local major=$1
+
+        [ $OS == $OS_LINUX ] && local os=linux
+        [ $OS == $OS_MAC ] && local os=mac
+        [ $OS == $OS_CYGWIN ] && local os=windows
+
+        [ $ARCH == $ARCH_32 ] && local arch=x32
+        [ $ARCH == $ARCH_64 ] && local arch=x64
+
+        VERSION_JSON=$(curl -s "https://api.adoptopenjdk.net/v2/latestAssets/releases/openjdk$major?os=$os&arch=$arch&openjdk_impl=hotspot&type=jdk")
+      }
+
+      if [ "${requested_version#1.8}" != "${requested_version}" ]; then
+        local major=8
+
+        if [ "${requested_version#1.8.}" != "${requested_version}" ]; then
+          local minor_patch=${requested_version#1.8.}
+          local minor=$(echo $minor_patch | cut -d'_' -f1)
+          if [ "$minor_patch" == "$minor" ]; then
+            local patch=""
+          else
+            local patch=$(echo $minor_patch | cut -d'_' -f2)
+          fi
+        else
+          local minor=""
+          local patch=""
+        fi
+
+        echo $major $minor $patch
+
+        if [ "$minor" == "" ] && [ "$patch" == "" ]; then
+          latest $major
+        elif [ "$patch" == "" ]; then
+          # get releases that match $major.$minor
+          # find the latest of those
+          echo "TODO"
+        else
+          # get releases that match $major.$minor.$patch
+          # find the latest
+          echo "TODO"
+        fi
+
+        JAVA_RELEASE_NAME=$(echo $VERSION_JSON | $JQ_BIN -r '.[].release_name')
+        JAVA_BINARY_LINK=$(echo $VERSION_JSON | $JQ_BIN -r '.[].binary_link')
+      elif [ "${requested_version#9.}" != "${requested_version}" ] || [ "${requested_version}" != "9" ]; then
+        echo "9"
+      elif [ "${requested_version#10.}" != "${requested_version}" ] || [ "${requested_version}" != "10" ]; then
+        echo "10"
+      elif [ "${requested_version#11.}" != "${requested_version}" ] || [ "${requested_version}" != "11" ]; then
+        echo "11"
+      elif [ "${requested_version#12.}" != "${requested_version}" ] || [ "${requested_version}" != "12" ]; then
+        echo "12"
+      fi
+    fi
+    
+  fi
+}
+
+# Download the jdk
+#
+# Requires:
+#  BASE_LOCAL_DIR
+#  JAVA_RELEASE_NAME
+#  JAVA_BINARY_LINK
+#
+# Sets:
+#  JAVA_HOME
+#
+function download_jdk() {
+  if [ "$JAVA_RELEASE_NAME" != "" ] && [ "$JAVA_BINARY_LINK" != "" ]; then
+    unset JAVA_HOME
+  
+    JAVA_HOME=$BASE_LOCAL_DIR/$JAVA_RELEASE_NAME
+
+    if [ ! -e $JAVA_HOME ]; then
+      $(mkdir -p $BASE_LOCAL_DIR)
+
+      local OLDCWD=$CWD
+      cd $BASE_LOCAL_DIR
+      echo "Downloading $JAVA_RELEASE_NAME for $ARCH $OS"
+
+      curl -s -L "$JAVA_BINARY_LINK" | tar -zx
+      cd $OLDCWD
+    fi
+  fi
+}
+
+
+#
+# Main
+#
+
+get_system_info
+
+# Mac Special Sauce - Launching a bash script from Finder sets the PWD to the user's home dir
+[[ "$OS" == "$OS_MAC" ]] && [[ "$HOME" == "$PWD" ]] && [[ "${#residual_args}" == "0" ]] && {
+  cd "$(dirname "$0")"
+}
+
+download_jq
+
+# Parse system.properties
+get_version
+
+# Download JDK if needed
+download_jdk $JAVA_RELEASE_NAME $JAVA_BINARY_LINK 
+
+if [ "${PATH#*$JAVA_HOME}" != "$PATH" ]; then
+  PATH=$JAVA_HOME/bin:$PATH
+fi

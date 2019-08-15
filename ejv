@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Embeddable Java Version
-# 
+#
 #  Projects can specify their Java version via a system.properties file
 #  Like: java.runtime.version=1.8.0_202
 #  That JDK is then downloaded (if needed) and the JAVA_HOME & PATH are set accordingly
@@ -153,6 +153,8 @@ function get_version() {
     if [ $java_distro == $DISTRO_ADOPTOPENJDK ]; then
       function latest() {
         local major=$1
+        local minor=$2
+        local patch=$3
 
         [ $OS == $OS_LINUX ] && local os=linux
         [ $OS == $OS_MAC ] && local os=mac
@@ -161,7 +163,25 @@ function get_version() {
         [ $ARCH == $ARCH_32 ] && local arch=x32
         [ $ARCH == $ARCH_64 ] && local arch=x64
 
-        VERSION_JSON=$(curl -s "https://api.adoptopenjdk.net/v2/latestAssets/releases/openjdk$major?os=$os&arch=$arch&openjdk_impl=hotspot&type=jdk")
+        local latest_url="https://api.adoptopenjdk.net/v2/latestAssets/releases/openjdk$major?os=$os&arch=$arch&openjdk_impl=hotspot&type=jdk"
+        local releases_url="https://api.adoptopenjdk.net/v2/info/releases/openjdk$major?os=$os&arch=$arch&openjdk_impl=hotspot&type=jdk"
+
+        if [ "$minor" == "" ] && [ "$patch" == "" ]; then
+          local version_json=$(curl -s $latest_url)
+          JAVA_RELEASE_NAME=$(echo $version_json | $JQ_BIN -r '.[].release_name')
+          JAVA_BINARY_LINK=$(echo $version_json | $JQ_BIN -r '.[].binary_link')
+        else
+          if [ "$patch" == "" ]; then
+            local version_prefix="$major.$minor"
+          else
+            local version_prefix="$major.$minor.$patch"
+          fi
+
+          # todo: does timestamp sorting actually work?
+          local version_json=$(curl -s $releases_url | $JQ_BIN -r "[.[] | select(.binaries[].version_data.semver | startswith(\"$version_prefix\"))] | sort_by(.timestamp) | reverse | .[0]")
+          JAVA_RELEASE_NAME=$(echo $version_json | $JQ_BIN -r '.release_name')
+          JAVA_BINARY_LINK=$(echo $version_json | $JQ_BIN -r '.binaries[].binary_link')
+        fi
       }
 
       if [ "${requested_version#1.8}" != "${requested_version}" ]; then
@@ -182,20 +202,12 @@ function get_version() {
 
         echo $major $minor $patch
 
-        if [ "$minor" == "" ] && [ "$patch" == "" ]; then
-          latest $major
-        elif [ "$patch" == "" ]; then
-          # get releases that match $major.$minor
-          # find the latest of those
-          echo "TODO"
-        else
-          # get releases that match $major.$minor.$patch
-          # find the latest
-          echo "TODO"
-        fi
+        latest $major $minor $patch
 
-        JAVA_RELEASE_NAME=$(echo $VERSION_JSON | $JQ_BIN -r '.[].release_name')
-        JAVA_BINARY_LINK=$(echo $VERSION_JSON | $JQ_BIN -r '.[].binary_link')
+        if [ "$JAVA_RELEASE_NAME" == "" ] || [ "$JAVA_BINARY_LINK" == "" ]; then
+          echo "Could not find a matching JDK version: $requested_version"
+          exit 1
+        fi
       elif [ "${requested_version#9.}" != "${requested_version}" ] || [ "${requested_version}" != "9" ]; then
         echo "9"
       elif [ "${requested_version#10.}" != "${requested_version}" ] || [ "${requested_version}" != "10" ]; then
@@ -206,7 +218,7 @@ function get_version() {
         echo "12"
       fi
     fi
-    
+
   fi
 }
 
@@ -223,7 +235,7 @@ function get_version() {
 function download_jdk() {
   if [ "$JAVA_RELEASE_NAME" != "" ] && [ "$JAVA_BINARY_LINK" != "" ]; then
     unset JAVA_HOME
-  
+
     JAVA_HOME=$BASE_LOCAL_DIR/$JAVA_RELEASE_NAME
 
     if [ ! -e $JAVA_HOME ]; then
@@ -257,7 +269,7 @@ download_jq
 get_version
 
 # Download JDK if needed
-download_jdk $JAVA_RELEASE_NAME $JAVA_BINARY_LINK 
+download_jdk $JAVA_RELEASE_NAME $JAVA_BINARY_LINK
 
 if [ "${PATH#*$JAVA_HOME}" != "$PATH" ]; then
   PATH=$JAVA_HOME/bin:$PATH

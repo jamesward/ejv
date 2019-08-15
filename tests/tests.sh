@@ -63,4 +63,4 @@ run_test "nodistro-1.8" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_
 run_test "nodistro-1.8.0" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_222-b10)"
 
 # Use AdoptOpenJDK by default
-run_test "nodistro-1.8.0_212" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_212-b10)"
+run_test "nodistro-1.8.0_212" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_212-b04)"

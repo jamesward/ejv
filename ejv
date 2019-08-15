@@ -241,12 +241,12 @@ function download_jdk() {
     if [ ! -e $JAVA_HOME ]; then
       $(mkdir -p $BASE_LOCAL_DIR)
 
-      local OLDCWD=$CWD
+      local oldpwd=$PWD
       cd $BASE_LOCAL_DIR
       echo "Downloading $JAVA_RELEASE_NAME for $ARCH $OS"
 
       curl -s -L "$JAVA_BINARY_LINK" | tar -zx
-      cd $OLDCWD
+      cd $oldpwd
     fi
   fi
 }

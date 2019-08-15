@@ -236,7 +236,14 @@ function download_jdk() {
   if [ "$JAVA_RELEASE_NAME" != "" ] && [ "$JAVA_BINARY_LINK" != "" ]; then
     unset JAVA_HOME
 
-    JAVA_HOME=$BASE_LOCAL_DIR/$JAVA_RELEASE_NAME
+    if [ "$OS" == "$OS_LINUX" ]; then
+      JAVA_HOME=$BASE_LOCAL_DIR/$JAVA_RELEASE_NAME
+    elif [ "$OS" == "$OS_MAC" ]; then
+      JAVA_HOME=$BASE_LOCAL_DIR/$JAVA_RELEASE_NAME/Contents/Home
+    else
+      echo "Could not figure out the JAVA_HOME"
+      exit 1
+    fi
 
     if [ ! -e $JAVA_HOME ]; then
       $(mkdir -p $BASE_LOCAL_DIR)

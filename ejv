@@ -17,7 +17,7 @@ local OS_CYGWIN="CYGWIN"
 local ARCH_32="i686"
 local ARCH_64="x86_64"
 
-local DISTRO_ADOPTOPENJDK="adpoptopenjdk"
+local DISTRO_ADOPTOPENJDK="adoptopenjdk"
 local DISTRO_OPENJDK="openjdk"
 local DISTRO_ZULU="zulu"
 
@@ -120,20 +120,17 @@ function get_version() {
   if [ -e system.properties ]; then
     local java_runtime_version=$(cat system.properties | grep "java.runtime.version=" | cut -d'=' -f2)
 
-    if [ "" != "" ]; then
-      # distro-version
+    local maybeDistro=$(echo $java_runtime_version | cut -d'-' -f1)
+    local maybeVersion=$(echo $java_runtime_version | cut -d'-' -f2)
+    if [ "$maybeDistro" == "$DISTRO_ADOPTOPENJDK" ]; then
+      # adoptopenjdk-VERSION
       #
-      # distros:
-      #  openjdk
-      #  zulu
-      #  adoptopenjdk
-      #
-      # examples:
-      #  openjdk-1.8
-      #  openjdk-1.8.0
-      #  openjdk-1.8.0_212
+      #  adoptopenjdk-1.8
+      #  adoptopenjdk-1.8.0
+      #  adoptopenjdk-1.8.0_212
 
-      echo "todo"
+      local java_distro=$DISTRO_ADOPTOPENJDK
+      local requested_version=$maybeVersion
     else
       # version
       #
@@ -177,8 +174,33 @@ function get_version() {
             local version_prefix="$major.$minor.$patch"
           fi
 
-          # todo: does timestamp sorting actually work?
-          local version_json=$(curl -s $releases_url | $JQ_BIN -r "[.[] | select(.binaries[].version_data.semver | startswith(\"$version_prefix\"))] | sort_by(.timestamp) | reverse | .[0]")
+          # find semver latest matching requested version prefix
+          # todo: there may be no versions
+          local versions_json=$(curl -s $releases_url | $JQ_BIN -r "[.[] | select(.binaries[].version_data.semver | startswith(\"$version_prefix\"))]")
+
+          local semvers=$(echo $versions_json | $JQ_BIN -r ".[].binaries[].version_data.semver")
+          local latest_major=0
+          local latest_minor=0
+          local latest_patch=0
+          local latest_tag=0
+          for semver in $semvers; do
+            IFS='.' read this_major this_minor this_patch_tag <<< $(echo $semver)
+            IFS='+' read this_patch this_tag <<< $(echo $this_patch_tag)
+
+            if [ $this_major -gt $latest_major ] ||
+               ([ $this_major == $latest_major ] && [ $this_minor -gt $latest_minor ]) ||
+               ([ $this_major == $latest_major ] && [ $this_minor == $latest_minor ] && [ $this_patch -gt $latest_patch ]) ||
+               ([ $this_major == $latest_major ] && [ $this_minor == $latest_minor ] && [ $this_patch == $latest_patch ] && [ $this_tag -gt $latest_tag ]); then
+                latest_major=$this_major
+                latest_minor=$this_minor
+                latest_patch=$this_patch
+                latest_tag=$this_tag
+            fi
+          done
+
+          local latest_version="$latest_major.$latest_minor.$latest_patch+$latest_tag"
+          local version_json=$(echo $versions_json | $JQ_BIN -r "[.[] | select(.binaries[].version_data.semver == \"$latest_version\")] | .[0]")
+
           JAVA_RELEASE_NAME=$(echo $version_json | $JQ_BIN -r '.release_name')
           JAVA_BINARY_LINK=$(echo $version_json | $JQ_BIN -r '.binaries[].binary_link')
         fi
@@ -199,24 +221,17 @@ function get_version() {
           local minor=""
           local patch=""
         fi
-
-        echo $major $minor $patch
-
-        latest $major $minor $patch
-
-        if [ "$JAVA_RELEASE_NAME" == "" ] || [ "$JAVA_BINARY_LINK" == "" ]; then
-          echo "Could not find a matching JDK version: $requested_version"
-          exit 1
-        fi
-      elif [ "${requested_version#9.}" != "${requested_version}" ] || [ "${requested_version}" != "9" ]; then
-        echo "9"
-      elif [ "${requested_version#10.}" != "${requested_version}" ] || [ "${requested_version}" != "10" ]; then
-        echo "10"
-      elif [ "${requested_version#11.}" != "${requested_version}" ] || [ "${requested_version}" != "11" ]; then
-        echo "11"
-      elif [ "${requested_version#12.}" != "${requested_version}" ] || [ "${requested_version}" != "12" ]; then
-        echo "12"
+      else
+        IFS='.' read major minor patch <<< $(echo $requested_version)
       fi
+
+      latest $major $minor $patch
+
+      if [ "$JAVA_RELEASE_NAME" == "" ] || [ "$JAVA_BINARY_LINK" == "" ]; then
+        echo "Could not find a matching JDK version: $requested_version"
+        exit 1
+      fi
+
     fi
 
   fi

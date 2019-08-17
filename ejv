@@ -188,8 +188,11 @@ function get_version() {
             local latest_patch=0
             local latest_tag=0
             for semver in $semvers; do
-              IFS='.' read this_major this_minor this_patch_tag <<< $(echo $semver)
-              IFS='+' read this_patch this_tag <<< $(echo $this_patch_tag)
+              local this_major=$(echo $semver | cut -d'.' -f1)
+              local this_minor=$(echo $semver | cut -d'.' -f2)
+              local this_patch_tag=$(echo $semver | cut -d'.' -f3)
+              local this_patch=$(echo $this_patch_tag | cut -d'+' -f1)
+              local this_tag=$(echo $this_patch_tag | cut -d'+' -f2)
 
               if [ "$this_major" -gt "$latest_major" ] ||
                 ([ "$this_major" == "$latest_major" ] && [ "$this_minor" -gt "$latest_minor" ]) ||
@@ -227,7 +230,18 @@ function get_version() {
           local patch=""
         fi
       else
-        IFS='.' read major minor patch <<< $(echo $requested_version)
+        local major=$(echo $requested_version | cut -d'.' -f1)
+        if [ "$requested_version" == "$major" ]; then
+          local minor=""
+          local patch=""
+        else
+          local minor=$(echo $requested_version | cut -d'.' -f2)
+          if [ "$requested_version" == "$major.$minor" ]; then
+            local patch=""
+          else
+            local patch=$(echo $requested_version | cut -d'.' -f3)
+          fi
+        fi
       fi
 
       latest $major $minor $patch

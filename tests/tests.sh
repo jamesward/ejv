@@ -64,9 +64,15 @@ run_test "nodistro-1.8.0" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.
 
 run_test "nodistro-1.8.0_212" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_212-b04)"
 
-run_test "nodistro-9" "OpenJDK Runtime Environment (build 9.0.4+11)"
+if [ "$OS" == "LINUX" ]; then
+  run_test "nodistro-9" "OpenJDK Runtime Environment (build 9.0.4+11)"
 
-run_test "nodistro-9.0" "OpenJDK Runtime Environment (build 9.0.4+11)"
+  run_test "nodistro-9.0" "OpenJDK Runtime Environment (build 9.0.4+11)"
+else
+  run_test "nodistro-9" "OpenJDK Runtime Environment (build 9+181)"
+
+  run_test "nodistro-9.0" "OpenJDK Runtime Environment (build 9+181)"
+fi
 
 run_test "nodistro-9.0.0" "OpenJDK Runtime Environment (build 9+181)"
 

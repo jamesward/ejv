@@ -27,8 +27,9 @@ run_test() {
 
   cd $DIR
 
+  NO_EXIT="true"
+  # todo: capture output for testing
   source $EJV
-  echo $JAVA_HOME
 
   if [ "$JAVA_HOME" != "" ]; then
     local OUTPUT="$($JAVA_HOME/bin/java -version 2>&1)"
@@ -56,23 +57,21 @@ run_test "no_file" "JAVA_HOME did not get set"
 # No java.runtime.version in the system.properties
 run_test "no_version" "JAVA_HOME did not get set"
 
-# Use AdoptOpenJDK by default - 1.8
+# Use AdoptOpenJDK by default
 run_test "nodistro-1.8" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_222-b10)"
 
-# Use AdoptOpenJDK by default
 run_test "nodistro-1.8.0" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_222-b10)"
 
-# Use AdoptOpenJDK by default
 run_test "nodistro-1.8.0_212" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_212-b04)"
 
-# Use AdoptOpenJDK by default
 run_test "nodistro-9" "OpenJDK Runtime Environment (build 9.0.4+11)"
 
-# Use AdoptOpenJDK by default
 run_test "nodistro-9.0" "OpenJDK Runtime Environment (build 9.0.4+11)"
 
-# Use AdoptOpenJDK by default
 run_test "nodistro-9.0.0" "OpenJDK Runtime Environment (build 9+181)"
 
 # Specify AdoptOpenJDK
 run_test "adoptopenjdk-1.8" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_222-b10)"
+
+# Fail correctly with a non-existant version
+run_test "nodistro-1.8.9999" "JAVA_HOME did not get set"

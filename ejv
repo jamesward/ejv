@@ -21,6 +21,12 @@ local DISTRO_ADOPTOPENJDK="adoptopenjdk"
 local DISTRO_OPENJDK="openjdk"
 local DISTRO_ZULU="zulu"
 
+function error() {
+  echo $1
+  if [ "$NO_EXIT" == "" ]; then
+    exit 1
+  fi
+}
 
 # Gets the system os and architecture
 #
@@ -34,8 +40,7 @@ function get_system_info() {
     readonly ARCH=$(uname -m)
 
     if [ "$ARCH" != "$ARCH_32" ] && [ "$ARCH" != "$ARCH_64" ]; then
-      echo "Did not recognize system architecture: $ARCH"
-      exit 1
+      error "Did not recognize system architecture: $ARCH"
     fi
 
     if [ "$(uname)" == "Darwin" ]; then
@@ -47,8 +52,7 @@ function get_system_info() {
     elif [ "$(uname -o)" == "GNU/Linux" ]; then
       readonly OS=$OS_LINUX
     else
-      echo "Did not recognize OS: $(uname)"
-      exit 1
+      error "Did not recognize OS: $(uname)"
     fi
   fi
 }
@@ -175,34 +179,35 @@ function get_version() {
           fi
 
           # find semver latest matching requested version prefix
-          # todo: there may be no versions
           local versions_json=$(curl -s $releases_url | $JQ_BIN -r "[.[] | select(.binaries[].version_data.semver | startswith(\"$version_prefix\"))]")
 
-          local semvers=$(echo $versions_json | $JQ_BIN -r ".[].binaries[].version_data.semver")
-          local latest_major=0
-          local latest_minor=0
-          local latest_patch=0
-          local latest_tag=0
-          for semver in $semvers; do
-            IFS='.' read this_major this_minor this_patch_tag <<< $(echo $semver)
-            IFS='+' read this_patch this_tag <<< $(echo $this_patch_tag)
+          if [ "$versions_json" != "[]" ]; then
+            local semvers=$(echo $versions_json | $JQ_BIN -r ".[].binaries[].version_data.semver")
+            local latest_major=0
+            local latest_minor=0
+            local latest_patch=0
+            local latest_tag=0
+            for semver in $semvers; do
+              IFS='.' read this_major this_minor this_patch_tag <<< $(echo $semver)
+              IFS='+' read this_patch this_tag <<< $(echo $this_patch_tag)
 
-            if [ $this_major -gt $latest_major ] ||
-               ([ $this_major == $latest_major ] && [ $this_minor -gt $latest_minor ]) ||
-               ([ $this_major == $latest_major ] && [ $this_minor == $latest_minor ] && [ $this_patch -gt $latest_patch ]) ||
-               ([ $this_major == $latest_major ] && [ $this_minor == $latest_minor ] && [ $this_patch == $latest_patch ] && [ $this_tag -gt $latest_tag ]); then
-                latest_major=$this_major
-                latest_minor=$this_minor
-                latest_patch=$this_patch
-                latest_tag=$this_tag
-            fi
-          done
+              if [ $this_major -gt $latest_major ] ||
+                ([ $this_major == $latest_major ] && [ $this_minor -gt $latest_minor ]) ||
+                ([ $this_major == $latest_major ] && [ $this_minor == $latest_minor ] && [ $this_patch -gt $latest_patch ]) ||
+                ([ $this_major == $latest_major ] && [ $this_minor == $latest_minor ] && [ $this_patch == $latest_patch ] && [ $this_tag -gt $latest_tag ]); then
+                  latest_major=$this_major
+                  latest_minor=$this_minor
+                  latest_patch=$this_patch
+                  latest_tag=$this_tag
+              fi
+            done
 
-          local latest_version="$latest_major.$latest_minor.$latest_patch+$latest_tag"
-          local version_json=$(echo $versions_json | $JQ_BIN -r "[.[] | select(.binaries[].version_data.semver == \"$latest_version\")] | .[0]")
+            local latest_version="$latest_major.$latest_minor.$latest_patch+$latest_tag"
+            local version_json=$(echo $versions_json | $JQ_BIN -r "[.[] | select(.binaries[].version_data.semver == \"$latest_version\")] | .[0]")
 
-          JAVA_RELEASE_NAME=$(echo $version_json | $JQ_BIN -r '.release_name')
-          JAVA_BINARY_LINK=$(echo $version_json | $JQ_BIN -r '.binaries[].binary_link')
+            JAVA_RELEASE_NAME=$(echo $version_json | $JQ_BIN -r '.release_name')
+            JAVA_BINARY_LINK=$(echo $version_json | $JQ_BIN -r '.binaries[].binary_link')
+          fi
         fi
       }
 
@@ -228,8 +233,7 @@ function get_version() {
       latest $major $minor $patch
 
       if [ "$JAVA_RELEASE_NAME" == "" ] || [ "$JAVA_BINARY_LINK" == "" ]; then
-        echo "Could not find a matching JDK version: $requested_version"
-        exit 1
+        error "Could not find a matching JDK version: $requested_version"
       fi
 
     fi
@@ -256,8 +260,7 @@ function download_jdk() {
     elif [ "$OS" == "$OS_MAC" ]; then
       JAVA_HOME=$BASE_LOCAL_DIR/$JAVA_RELEASE_NAME/Contents/Home
     else
-      echo "Could not figure out the JAVA_HOME"
-      exit 1
+      error "Could not figure out the JAVA_HOME"
     fi
 
     if [ ! -e $JAVA_HOME ]; then

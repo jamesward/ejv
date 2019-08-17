@@ -151,7 +151,7 @@ function get_version() {
     fi
 
     # transform requested into an actual version
-    if [ $java_distro == $DISTRO_ADOPTOPENJDK ]; then
+    if [ "$java_distro" == "$DISTRO_ADOPTOPENJDK" ]; then
       function latest() {
         local major=$1
         local minor=$2
@@ -191,10 +191,10 @@ function get_version() {
               IFS='.' read this_major this_minor this_patch_tag <<< $(echo $semver)
               IFS='+' read this_patch this_tag <<< $(echo $this_patch_tag)
 
-              if [ $this_major -gt $latest_major ] ||
-                ([ $this_major == $latest_major ] && [ $this_minor -gt $latest_minor ]) ||
-                ([ $this_major == $latest_major ] && [ $this_minor == $latest_minor ] && [ $this_patch -gt $latest_patch ]) ||
-                ([ $this_major == $latest_major ] && [ $this_minor == $latest_minor ] && [ $this_patch == $latest_patch ] && [ $this_tag -gt $latest_tag ]); then
+              if [ "$this_major" -gt "$latest_major" ] ||
+                ([ "$this_major" == "$latest_major" ] && [ "$this_minor" -gt "$latest_minor" ]) ||
+                ([ "$this_major" == "$latest_major" ] && [ "$this_minor" == "$latest_minor" ] && [ "$this_patch" -gt "$latest_patch" ]) ||
+                ([ "$this_major" == "$latest_major" ] && [ "$this_minor" == "$latest_minor" ] && [ "$this_patch" == "$latest_patch" ] && [ "$this_tag" -gt "$latest_tag" ]); then
                   latest_major=$this_major
                   latest_minor=$this_minor
                   latest_patch=$this_patch

@@ -81,3 +81,6 @@ run_test "adoptopenjdk-1.8" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.
 
 # Fail correctly with a non-existant version
 run_test "nodistro-1.8.9999" "JAVA_HOME did not get set"
+
+# Work with a pom.xml
+run_test "pom-1.8" "OpenJDK Runtime Environment (AdoptOpenJDK)(build 1.8.0_222-b10)"

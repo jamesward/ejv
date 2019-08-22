@@ -1,25 +1,26 @@
 #!/bin/bash
 #
 # Embeddable Java Version
+# Source: https://github.com/jamesward/ejv
 #
 #  Projects can specify their Java version via a system.properties file
 #  Like: java.runtime.version=1.8.0_202
 #  That JDK is then downloaded (if needed) and the JAVA_HOME & PATH are set accordingly
 #
 
-local BASE_LOCAL_DIR=$HOME/.ejv
-local JQ_VERSION=1.4
+BASE_LOCAL_DIR=$HOME/.ejv
+JQ_VERSION=1.4
 
-local OS_LINUX="LINUX"
-local OS_MAC="MAC"
-local OS_CYGWIN="CYGWIN"
+OS_LINUX="LINUX"
+OS_MAC="MAC"
+OS_CYGWIN="CYGWIN"
 
-local ARCH_32="i686"
-local ARCH_64="x86_64"
+ARCH_32="i686"
+ARCH_64="x86_64"
 
-local DISTRO_ADOPTOPENJDK="adoptopenjdk"
-local DISTRO_OPENJDK="openjdk"
-local DISTRO_ZULU="zulu"
+DISTRO_ADOPTOPENJDK="adoptopenjdk"
+DISTRO_OPENJDK="openjdk"
+DISTRO_ZULU="zulu"
 
 function error() {
   echo $1
@@ -123,6 +124,11 @@ function get_version() {
 
   if [ -e system.properties ]; then
     local java_runtime_version=$(cat system.properties | grep "java.runtime.version=" | cut -d'=' -f2)
+  elif [ -e pom.xml ]; then
+    local java_runtime_version=$(sed -n 's/^.*<java\.version>\(.*\)<\/java\.version>.*$/\1/p' pom.xml)
+  fi
+
+  if [ "$java_runtime_version" != "" ]; then
 
     local maybeDistro=$(echo $java_runtime_version | cut -d'-' -f1)
     local maybeVersion=$(echo $java_runtime_version | cut -d'-' -f2)
